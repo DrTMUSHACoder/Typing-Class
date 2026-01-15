@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Harish's TypeFlow</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=8">
+    <!-- Auth Check -->
+    <!-- Auth Check handled in script.js -->
+</head>
+
+<body>
+
+    <script>
+        // Mobile Logic - Friendly Mode
+        if (window.innerWidth < 900) {
+
+            // Function to show friendly popup
+            function showMobilePopup(e) {
+                if (e) e.preventDefault(); // Stop navigation if event exists
+
+                // Check if already exists
+                if (document.getElementById('mobile-friendly-modal')) return;
+
+                const modalHtml = `
+                <div id="mobile-friendly-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 99999; display: flex; justify-content: center; align-items: center; padding: 20px; backdrop-filter: blur(5px); animation: fadeIn 0.3s ease;">
+                    <div style="background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid rgba(255,255,255,0.1); padding: 2rem; border-radius: 20px; text-align: center; max-width: 90%; box-shadow: 0 20px 50px rgba(0,0,0,0.5); position: relative;">
+                        <button onclick="document.getElementById('mobile-friendly-modal').remove()" 
+                            style="position: absolute; top: 15px; right: 15px; background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer;">&times;</button>
+                        
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">⌨️</div>
+                        <h2 style="color: white; font-size: 1.4rem; margin-bottom: 0.5rem;">Ready to Type Fast?</h2>
+                        <p style="color: #cbd5e1; margin-bottom: 1.5rem; line-height: 1.6; font-size: 0.95rem;">
+                            To truly master touch typing, you need a real keyboard!<br><br>
+                            For the best experience (and to reach 100 WPM! 🚀), please visit <strong>Harish's TypeFlow</strong> on your Laptop or Desktop.
+                        </p>
+                        
+                        <button onclick="document.getElementById('mobile-friendly-modal').remove()" 
+                            style="background: var(--accent-color); color: white; border: none; padding: 10px 25px; border-radius: 50px; font-weight: 600; cursor: pointer; transition: transform 0.2s;">
+                            Got it, I'll switch!
+                        </button>
+                    </div>
+                </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+            }
+
+            // Show immediately on load
+            showMobilePopup();
+
+            // Attach to ALL Login/Signup Buttons
+            const authLinks = document.querySelectorAll('a[href="login.html"], a[href="register.html"]');
+            authLinks.forEach(link => {
+                link.onclick = showMobilePopup;
+                // Re-enable display in case previous script hid them
+                link.style.display = '';
+            });
+        }
+    </script>
+
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="logo-container">
+                    <img src="logo.png" alt="TypeFlow Logo" class="app-logo">
+                    <div>
+                        <h1>Harish Typing Class <span class="wave">👋</span></h1>
+                        <p>Master your typing speed and finger placement.</p>
+                    </div>
+                </div>
+
+                <div class="right-header">
+                    <!-- Info Bar (Date, Attendance, Report) -->
+                    <div class="info-bar">
+                        <!-- Profile Section -->
+                        <div class="profile-section" id="profile-trigger" title="Edit Profile">
+                            <div id="header-avatar" class="header-avatar"></div> <!-- Img or Initials -->
+                            <div class="profile-text"
+                                style="display:flex; flex-direction:row; align-items:center; gap:10px;">
+                                <div id="user-name" class="user-name">User</div>
+                                <button id="btn-edit-profile" class="btn-text" onclick="window.openProfileModal()"
+                                    style="color:var(--accent-color); text-decoration:underline; cursor:pointer;">Edit
+                                    Profile</button>
+                            </div>
+                        </div>
+
+                        <div id="current-datetime" class="datetime-display">--/--/---- --:-- --</div>
+                        <div id="attendance-status" class="attendance-status">Attendance: <span class="status-no">Not
+                                Marked</span></div>
+                        <button id="btn-guide" class="btn-text">Keyboard Finger Chart</button>
+                        <button id="btn-report" class="btn-text">View Daily Report</button>
+                        <button id="btn-admin" class="btn-text"
+                            style="display: none; color: var(--accent-color); font-weight: bold;">Admin Panel</button>
+                        <button id="btn-logout" class="btn-text" style="color: var(--incorrect-color);">Logout</button>
+                    </div>
+
+                    <!-- Global Stats -->
+                    <div class="global-stats" id="global-stats">
+                        <div class="g-stat">Cards: <span id="g-cards">0</span></div>
+                        <div class="g-stat">Avg WPM: <span id="g-wpm">0</span></div>
+                        <div class="g-stat">Avg Acc: <span id="g-acc">0%</span></div>
+                        <div class="g-stat">Avg Err: <span id="g-err">0</span></div>
+                    </div>
+                    <div id="completed-cards" class="completed-cards">Completed: -</div>
+                </div>
+            </div>
+
+            <!-- New Horizontal Menu System -->
+            <div class="menu-system">
+                <div class="category-tabs" id="category-tabs">
+                    <!-- Categories injected by JS -->
+                </div>
+                <div class="lesson-scroller" id="lesson-scroller">
+                    <!-- Lessons injected by JS -->
+                </div>
+            </div>
+        </header>
+
+        <div class="glass-panel">
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <span class="label">Time</span>
+                    <span class="value" id="timer">60s</span>
+                </div>
+                <div class="stat-item">
+                    <span class="label">WPM</span>
+                    <span class="value" id="wpm">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="label">Accuracy</span>
+                    <span class="value" id="accuracy">100%</span>
+                </div>
+            </div>
+
+            <div class="typing-area">
+                <div id="instruction-text" class="instruction-text">
+                    Select a lesson from above to begin.
+                </div>
+                <div id="quote-display" class="quote-display">
+                    <!-- Text will appear here -->
+                </div>
+                <input type="text" id="quote-input" class="quote-input" autocomplete="off" disabled>
+            </div>
+            <br>
+            <!-- Double Pane Visuals: Keyboard & Hands -->
+            <div class="visuals-container">
+
+                <!-- 1. Virtual Keyboard -->
+                <div class="keyboard-wrapper">
+                    <div class="keyboard-container">
+                        <div class="keyboard-row">
+                            <div class="key pinky" data-key="q">Q</div>
+                            <div class="key ring" data-key="w">W</div>
+                            <div class="key middle" data-key="e">E</div>
+                            <div class="key index" data-key="r">R</div>
+                            <div class="key index" data-key="t">T</div>
+                            <div class="key index" data-key="y">Y</div>
+                            <div class="key index" data-key="u">U</div>
+                            <div class="key middle" data-key="i">I</div>
+                            <div class="key ring" data-key="o">O</div>
+                            <div class="key pinky" data-key="p">P</div>
+                        </div>
+                        <div class="keyboard-row">
+                            <div class="key pinky" data-key="a">A</div>
+                            <div class="key ring" data-key="s">S</div>
+                            <div class="key middle" data-key="d">D</div>
+                            <div class="key index" data-key="f">F<span class="bump">_</span></div>
+                            <div class="key index" data-key="g">G</div>
+                            <div class="key index" data-key="h">H</div>
+                            <div class="key index" data-key="j">J<span class="bump">_</span></div>
+                            <div class="key middle" data-key="k">K</div>
+                            <div class="key ring" data-key="l">L</div>
+                            <div class="key pinky" data-key=";">;</div>
+                        </div>
+                        <div class="keyboard-row">
+                            <div class="key pinky" data-key="z">Z</div>
+                            <div class="key ring" data-key="x">X</div>
+                            <div class="key middle" data-key="c">C</div>
+                            <div class="key index" data-key="v">V</div>
+                            <div class="key index" data-key="b">B</div>
+                            <div class="key index" data-key="n">N</div>
+                            <div class="key index" data-key="m">M</div>
+                            <div class="key middle" data-key=",">,</div>
+                            <div class="key ring" data-key=".">.</div>
+                            <div class="key pinky" data-key="/">/</div>
+                        </div>
+                        <div class="keyboard-row">
+                            <div class="key pinky" data-key="shift">Shift</div>
+                            <div class="key thumb space-key" data-key=" ">Space</div>
+                            <div class="key pinky" data-key="shift">Shift</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Hand Guides -->
+                <div class="hands-wrapper">
+                    <div class="hands-container">
+                        <!-- Left Hand -->
+                        <div class="hand left-hand">
+                            <div class="finger pinky" id="f-l-pinky"></div> <!-- Little -->
+                            <div class="finger ring" id="f-l-ring"></div> <!-- Ring -->
+                            <div class="finger middle" id="f-l-middle"></div> <!-- Middle -->
+                            <div class="finger index" id="f-l-index"></div> <!-- Index -->
+                            <div class="finger thumb" id="f-l-thumb"></div> <!-- Thumb -->
+                            <div class="palm">L</div>
+                        </div>
+
+                        <!-- Right Hand -->
+                        <div class="hand right-hand">
+                            <div class="finger thumb" id="f-r-thumb"></div> <!-- Thumb -->
+                            <div class="finger index" id="f-r-index"></div> <!-- Index -->
+                            <div class="finger middle" id="f-r-middle"></div> <!-- Middle -->
+                            <div class="finger ring" id="f-r-ring"></div> <!-- Ring -->
+                            <div class="finger pinky" id="f-r-pinky"></div> <!-- Little -->
+                            <div class="palm">R</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="controls">
+                <button id="start-btn" class="btn primary-btn" style="display:none;">Start Lesson</button>
+                <button id="restart-btn" class="btn secondary-btn" style="display: none;">Restart</button>
+            </div>
+
+            <div id="error-report" class="error-report hidden">
+                <h3>Lesson Complete!</h3>
+                <p>Most Frequent Misses:</p>
+                <div id="error-list"></div>
+            </div>
+        </div>
+
+        <footer>
+            <p><strong>Tip:</strong> Don't look at your hands! Trust your fingers.</p>
+            <div class="developer-info">
+                <p>&copy; 2026 Harish's TypeFlow. All rights reserved.</p>
+                <p>Developed and Maintained by <strong>Harish A S</strong></p>
+                <p>
+                    Contact: <a href="tel:8328233110" class="footer-link">8328233110</a> |
+                    <a href="mailto:anandhunharish@gmail.com" class="footer-link">anandhunharish@gmail.com</a>
+                </p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Report Modal -->
+    <div id="report-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <span class="close-modal" id="close-modal-x">&times;</span>
+            <h2 style="color: var(--accent-color); margin-bottom: 1rem; text-align: center;">Daily Performance Report
+            </h2>
+            <div id="report-modal-body">
+                <!-- Injected via JS -->
+            </div>
+            <div style="text-align: center; margin-top: 2rem;">
+                <button id="btn-close-report" class="btn-text"
+                    style="border: 1px solid rgba(255,255,255,0.2); padding: 8px 20px;">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Profile Modal -->
+    <div id="profile-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close-modal" id="close-profile-x">&times;</span>
+            <h2 style="color: var(--accent-color); margin-bottom: 1.5rem; text-align: center;">Edit Profile</h2>
+
+            <form id="profile-form" style="display: flex; flex-direction: column; gap: 1rem;">
+                <!-- Profile Pic Upload -->
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                    <div id="preview-avatar" class="header-avatar large"></div>
+                    <label for="profile-pic-input" class="btn-text"
+                        style="cursor: pointer; border: 1px solid rgba(255,255,255,0.2); padding: 5px 15px;">Change
+                        Photo</label>
+                    <input type="file" id="profile-pic-input" accept="image/*" style="display: none;">
+                </div>
+
+                <!-- Fields -->
+                <div class="form-group">
+                    <label>Email (Cannot change)</label>
+                    <input type="email" id="profile-email" disabled
+                        style="background: rgba(255,255,255,0.05); cursor: not-allowed;">
+                </div>
+
+                <div class="form-group">
+                    <label>New Password</label>
+                    <input type="password" id="profile-password" placeholder="Leave blank to keep current">
+                </div>
+
+                <div class="form-group" style="text-align: center; margin-top: 1rem;">
+                    <button type="submit" class="btn-primary" style="padding: 10px 30px;">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Guide Modal -->
+    <div id="guide-modal" class="modal">
+        <div class="modal-content" style="max-width: 800px; text-align: center;">
+            <span id="close-guide-x" class="close-x">&times;</span>
+            <h2 style="margin-bottom: 20px;">Finger Positioning Guide</h2>
+            <img src="typwriting finger position.jpg" alt="Finger Position Guide"
+                style="width: 100%; height: auto; border-radius: 8px; border: 2px solid rgba(255,255,255,0.1);">
+            <div style="margin-top: 20px; font-size: 0.9rem; color: #aaa;">
+                <p>Follow the color codes to position your fingers correctly on the home row.</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="script.js"></script>
+    <script src="lessons.js"></script>
+</body>
+
+</html>
