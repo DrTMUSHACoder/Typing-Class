@@ -1,6 +1,6 @@
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getDatabase } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyCVlcFFCuJrrhn51JVZx34KXuvLjkZ9UFg",
@@ -13,5 +13,14 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getDatabase(app);
+const auth = getAuth(app);
+
+console.log("Testing Firebase connectivity...");
+
+signInAnonymously(auth)
+    .then(() => {
+        console.log("SUCCESS: Firebase Auth is reachable!");
+    })
+    .catch((error) => {
+        console.error("FAILURE: Firebase Auth error:", error.code, error.message);
+    });

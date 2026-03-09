@@ -1,6 +1,4 @@
-import { auth, db } from './firebase-config.js';
-import { onAuthStateChanged, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { ref, get, set, update, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { supabase } from './supabase-config.js';
 
 const quoteDisplayElement = document.getElementById('quote-display');
 const quoteInputElement = document.getElementById('quote-input');
@@ -148,9 +146,11 @@ function loadLesson(key) {
     // Show Game Elements; Hide Results
     const visuals = document.querySelector('.visuals-container');
     const typingArea = document.querySelector('.typing-area');
+    const typingView = document.getElementById('typing-view');
     const resultsScreen = document.getElementById('results-screen');
     const resultsContent = document.getElementById('results-content'); // Clear content too
 
+    if (typingView) typingView.style.display = 'block';
     if (visuals) visuals.style.display = 'flex';
     if (typingArea) typingArea.style.display = 'flex';
     if (resultsScreen) {
@@ -271,11 +271,15 @@ function finishGame() {
     // Hide visuals to show stats without scrolling
     const visuals = document.querySelector('.visuals-container');
     const typingArea = document.querySelector('.typing-area');
+    const typingView = document.getElementById('typing-view');
     const resultsScreen = document.getElementById('results-screen');
     const resultsContent = document.getElementById('results-content');
 
+    // ONLY hide typing-view contents, NOT progress-view
     if (visuals) visuals.style.display = 'none';
     if (typingArea) typingArea.style.display = 'none';
+    // Let typingView stay block so the Retry button is visible
+    if (typingView) typingView.style.display = 'block';
 
     // Show Results
     if (resultsScreen && resultsContent) {
@@ -339,14 +343,20 @@ function finishGame() {
         }
     }
 
+    // Always show results screen
+    errorReport.classList.remove('hidden');
+
     if (Object.keys(missedKeys).length > 0) {
-        errorReport.classList.remove('hidden');
+        document.querySelector('.error-report p').innerText = "Most Frequent Misses:";
         const sortedErrors = Object.entries(missedKeys).sort((a, b) => b[1] - a[1]);
         errorList.innerHTML = sortedErrors.slice(0, 5).map(([char, count]) =>
             `<span style="margin-right: 15px; font-family:var(--font-mono)">
-                <span style="color:var(--incorrect-color); font-weight:bold">${char}</span>: ${count}x
+                <span style="color:var(--incorrect-color); font-weight:bold">${char === ' ' ? 'Space' : char}</span>: ${count}x
             </span>`
         ).join('');
+    } else {
+        document.querySelector('.error-report p').innerText = "";
+        errorList.innerHTML = `<span style="color:var(--correct-color); font-size:1.2rem; font-weight:bold;">✨ Perfect Round! No errors at all. ✨</span>`;
     }
 }
 
@@ -391,7 +401,8 @@ function getReportingWindow() {
 
 async function saveSession(lessonTitle, wpm, acc, errors, missedKeys = {}) {
     // Get current user for attribution
-    const user = auth.currentUser || JSON.parse(localStorage.getItem('typeFlow_user'));
+    const { data: { user } } = await supabase.auth.getUser();
+    const localUser = JSON.parse(localStorage.getItem('typeFlow_user'));
 
     const session = {
         timestamp: new Date().toISOString(),
@@ -399,8 +410,9 @@ async function saveSession(lessonTitle, wpm, acc, errors, missedKeys = {}) {
         wpm: wpm,
         accuracy: acc,
         errors: errors,
-        missedKeys: missedKeys,
-        userEmail: user ? user.email : 'unknown'
+        missed_keys: missedKeys, // Corrected to snake_case for database
+        user_id: user ? user.id : (localUser ? localUser.id : null),
+        user_email: user ? user.email : (localUser ? localUser.email : 'unknown')
     };
 
     // 1. Save to Local Storage (Immediate feedback)
@@ -408,20 +420,30 @@ async function saveSession(lessonTitle, wpm, acc, errors, missedKeys = {}) {
     history.push(session);
     localStorage.setItem('typeFlow_history', JSON.stringify(history));
 
-    // 2. Save to Firebase (Cloud)
-    if (user && user.uid) {
+    // 2. Save to Supabase (Cloud)
+    if (session.user_id) {
         try {
-            await push(ref(db, 'history/' + user.uid), session);
-            console.log("Session saved to cloud.");
+            const { data, error } = await supabase
+                .from('typing_history')
+                .insert([session])
+                .select(); // Select back to confirm
+
+            if (error) {
+                console.error("Supabase Insert Error:", error);
+                throw new Error(error.message);
+            }
+            console.log("Session saved to cloud:", data);
         } catch (e) {
             console.error("Cloud save failed:", e);
+            // Optionally notify user if it's a persistent issue
+            // alert("Database error: could not sync your progress. Please check your connection.");
         }
     }
 
     updateAttendanceStatus();
 }
 
-function updateAttendanceStatus() {
+async function updateAttendanceStatus() {
     const { start, end } = getReportingWindow();
     let history = JSON.parse(localStorage.getItem('typeFlow_history') || '[]');
 
@@ -505,18 +527,28 @@ function restoreDailyProgress() {
 // Download Report
 // Download PDF Report
 // --- REPORT MODAL LOGIC ---
-reportBtn.onclick = () => {
+let showFullHistory = false;
+
+reportBtn.onclick = renderReportInModal;
+
+function renderReportInModal() {
     const { start, end } = getReportingWindow();
     let history = JSON.parse(localStorage.getItem('typeFlow_history') || '[]');
 
-    // Filter for current window
-    const reportData = history.filter(rec => {
+    // Filter for current window OR show all
+    const reportData = showFullHistory ? history : history.filter(rec => {
         const d = new Date(rec.timestamp);
         return d >= start && d < end;
     });
 
     if (reportData.length === 0) {
-        alert("No records found for today (6 AM - 6 AM).");
+        if (showFullHistory) {
+            alert("No practice records found.");
+        } else {
+            alert("No records found for today (6 AM - 6 AM). Switch to 'All-Time' to see past work.");
+            showFullHistory = true;
+            renderReportInModal();
+        }
         return;
     }
 
@@ -528,8 +560,10 @@ reportBtn.onclick = () => {
     // 2. Top Misses Aggregation
     let allMisses = {};
     reportData.forEach(row => {
-        if (row.missedKeys) {
-            Object.entries(row.missedKeys).forEach(([key, count]) => {
+        // Support both snake_case (DB) and camelCase (old LocalStorage)
+        const misses = row.missed_keys || row.missedKeys;
+        if (misses) {
+            Object.entries(misses).forEach(([key, count]) => {
                 allMisses[key] = (allMisses[key] || 0) + count;
             });
         }
@@ -567,6 +601,12 @@ reportBtn.onclick = () => {
     // 4. Construct Modal Content
     const modalBody = document.getElementById('report-modal-body');
     modalBody.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="color:white; margin:0;">${showFullHistory ? 'All-Time Progress' : 'Today\'s Performance'}</h3>
+            <button id="toggle-history-depth" class="btn-text-small" style="padding: 5px 15px;">
+                ${showFullHistory ? 'View Today Only' : 'View All-Time History'}
+            </button>
+        </div>
         <div class="report-summary-box">
             <div class="report-stat">
                 <span class="val">${dailyCards}</span>
@@ -604,7 +644,16 @@ reportBtn.onclick = () => {
 
     // Show Modal
     document.getElementById('report-modal').style.display = 'flex';
-};
+
+    // Toggle button handler
+    const toggleBtn = document.getElementById('toggle-history-depth');
+    if (toggleBtn) {
+        toggleBtn.onclick = () => {
+            showFullHistory = !showFullHistory;
+            renderReportInModal();
+        };
+    }
+}
 
 // Modal Close Logic
 const modal = document.getElementById('report-modal');
@@ -664,8 +713,8 @@ document.addEventListener('keydown', (e) => {
 
 
 // --- INITIALIZATION ---
-function initApp() {
-    console.log("Initializing App via Firebase...");
+async function initApp() {
+    console.log("Initializing App via Supabase...");
 
     // Mobile Detection Toast
     if (window.innerWidth < 900) {
@@ -703,73 +752,182 @@ function initApp() {
     if (resultsScreen) resultsScreen.style.display = 'none';
 
     // Auth Listener
-    onAuthStateChanged(auth, async (user) => {
+    const { data: { session } } = await supabase.auth.getSession();
+
+    const handleUser = async (user) => {
         if (user) {
-            console.log("User is signed in:", user.uid);
+            console.log("User is signed in:", user.id);
 
-            // Fetch User Profile
-            const userRef = ref(db, 'users/' + user.uid);
-            try {
-                const snapshot = await get(userRef);
-                let userData = snapshot.val();
-                if (!userData) userData = { name: user.email, email: user.email, role: 'user' };
+            // Fetch User Profile from 'profiles' table
+            const { data: userData, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .single();
 
-                // Sync to localStorage for legacy code compatibility
-                const appUser = { ...userData, uid: user.uid };
-                localStorage.setItem('typeFlow_user', JSON.stringify(appUser));
-
-                // SYNC HISTORY (Cloud -> Local)
-                try {
-                    const hSnap = await get(ref(db, 'history/' + user.uid));
-                    const hObj = hSnap.val();
-                    if (hObj) {
-                        const hArr = Object.values(hObj);
-                        localStorage.setItem('typeFlow_history', JSON.stringify(hArr));
-                        if (typeof restoreDailyProgress === 'function') restoreDailyProgress();
-                        if (typeof updateAttendanceStatus === 'function') updateAttendanceStatus();
-                    }
-                } catch (hErr) { console.error("History sync failed", hErr); }
-
-                // Render UI
-                renderMenu();
-                renderUserProfile(appUser);
-
-                if (appUser.role === 'admin') {
-                    const adminBtn = document.getElementById('btn-admin');
-                    if (adminBtn) {
-                        adminBtn.style.display = 'inline-block';
-                        adminBtn.onclick = () => window.location.href = 'admin.html';
-                    }
-                }
-                setupProfileFeatures();
-
-                // Select first lesson
-                setTimeout(() => {
-                    const firstChip = document.querySelector('.lesson-chip');
-                    if (firstChip) firstChip.click();
-                }, 100);
-
-            } catch (err) {
-                console.error("Error fetching user profile:", err);
+            let finalUserData = userData;
+            if (!finalUserData) {
+                finalUserData = { id: user.id, name: user.email, email: user.email, role: 'user' };
             }
+
+            // Sync to localStorage
+            localStorage.setItem('typeFlow_user', JSON.stringify(finalUserData));
+
+            // SYNC HISTORY (Cloud -> Local)
+            try {
+                const { data: historyData, error: hErr } = await supabase
+                    .from('typing_history')
+                    .select('*')
+                    .eq('user_id', user.id);
+
+                if (historyData) {
+                    localStorage.setItem('typeFlow_history', JSON.stringify(historyData));
+                    if (typeof restoreDailyProgress === 'function') restoreDailyProgress();
+                    if (typeof updateAttendanceStatus === 'function') updateAttendanceStatus();
+                }
+            } catch (hErr) { console.error("History sync failed", hErr); }
+
+            // Render UI
+            renderMenu();
+            renderUserProfile(finalUserData);
+
+            if (finalUserData.role === 'admin') {
+                const adminBtn = document.getElementById('btn-admin');
+                if (adminBtn) {
+                    adminBtn.style.display = 'inline-block';
+                    adminBtn.onclick = () => window.location.href = 'admin.html';
+                }
+            }
+            setupProfileFeatures();
+
+            // Select first lesson
+            setTimeout(() => {
+                const firstChip = document.querySelector('.lesson-chip');
+                if (firstChip) firstChip.click();
+            }, 100);
 
         } else {
             console.log("No user signed in. Redirecting...");
             window.location.href = 'login.html';
         }
+    };
+
+    // Listen for auth changes
+    supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            handleUser(session.user);
+        } else if (event === 'SIGNED_OUT') {
+            localStorage.removeItem('typeFlow_user');
+            window.location.href = 'login.html';
+        }
     });
+
+    // Initial check
+    if (session) {
+        handleUser(session.user);
+    } else {
+        window.location.href = 'login.html';
+    }
 
     const logoutBtn = document.getElementById('btn-logout');
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            signOut(auth).then(() => {
-                localStorage.removeItem('typeFlow_user');
-                window.location.href = 'index.html';
-            });
+        logoutBtn.addEventListener('click', async () => {
+            await supabase.auth.signOut();
         });
     }
 
     updateDateTime();
+}
+
+// --- DASHBOARD GRAPHS & VIEWS ---
+let wpmChart = null;
+
+function renderProgressGraph() {
+    const history = JSON.parse(localStorage.getItem('typeFlow_history') || '[]');
+    if (history.length === 0) return;
+
+    // Take last 20 sessions
+    const recent = history.slice(-20);
+    const labels = recent.map((_, i) => (i + 1));
+    const dataWPM = recent.map(r => r.wpm);
+    const dataAcc = recent.map(r => parseInt(r.accuracy) || 0);
+
+    const ctx = document.getElementById('wpmChart');
+    if (!ctx) return;
+
+    if (wpmChart) wpmChart.destroy();
+
+    wpmChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'WPM',
+                    data: dataWPM,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#3b82f6'
+                },
+                {
+                    label: 'Accuracy %',
+                    data: dataAcc,
+                    borderColor: '#4ade80',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: false,
+                    pointBackgroundColor: '#4ade80'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#94a3b8' }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#94a3b8' }
+                }
+            },
+            plugins: {
+                legend: {
+                    labels: { color: '#f1f5f9', font: { family: 'Outfit', size: 12 } }
+                }
+            }
+        }
+    });
+}
+
+// TOGGLE VIEWS
+const typingView = document.getElementById('typing-view');
+const progressView = document.getElementById('progress-view');
+const btnShowTyping = document.getElementById('show-typing');
+const btnShowProgress = document.getElementById('show-progress');
+
+if (btnShowTyping && btnShowProgress) {
+    btnShowTyping.onclick = () => {
+        typingView.style.display = 'block';
+        progressView.style.display = 'none';
+        btnShowTyping.classList.add('active');
+        btnShowProgress.classList.remove('active');
+    };
+
+    btnShowProgress.onclick = () => {
+        typingView.style.display = 'none';
+        progressView.style.display = 'flex';
+        btnShowTyping.classList.remove('active');
+        btnShowProgress.classList.add('active');
+        renderProgressGraph();
+    };
 }
 
 function renderUserProfile(user) {
@@ -870,10 +1028,10 @@ function setupProfileFeatures() {
         }
     };
 
-    // Save Profile - UPDATED FOR FIREBASE
+    // Save Profile - UPDATED FOR SUPABASE
     form.onsubmit = async (e) => {
         e.preventDefault();
-        const user = auth.currentUser; // Get verified auth user
+        const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
         let localUser = JSON.parse(localStorage.getItem('typeFlow_user'));
@@ -884,7 +1042,8 @@ function setupProfileFeatures() {
         try {
             // 1. Update Password if provided
             if (newPass) {
-                await updatePassword(user, newPass);
+                const { error: passError } = await supabase.auth.updateUser({ password: newPass });
+                if (passError) throw passError;
             }
 
             // 2. Process Image (Base64)
@@ -897,11 +1056,13 @@ function setupProfileFeatures() {
                 });
             }
 
-            // 3. Update RTDB
-            await update(ref(db, 'users/' + user.uid), {
-                profilePic: profilePicUrl
-                // password is not stored in DB, strictly Auth
-            });
+            // 3. Update profiles table
+            const { error: dbError } = await supabase
+                .from('profiles')
+                .update({ profile_pic: profilePicUrl })
+                .eq('id', user.id);
+
+            if (dbError) throw dbError;
 
             // 4. Update Local State & UI
             localUser.profilePic = profilePicUrl;

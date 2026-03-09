@@ -172,15 +172,14 @@
     </div>
 
     <script type="module">
-        import { auth } from './firebase-config.js';
-        import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { supabase } from './supabase-config.js';
 
         const loginForm = document.getElementById('login-form');
         const errorMsg = document.getElementById('error-msg');
 
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            console.log("Login form submitted via Firebase");
+            console.log("Login form submitted via Supabase");
 
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
@@ -190,20 +189,19 @@
             btn.disabled = true;
 
             try {
-                const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                console.log("Logged in:", userCredential.user);
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password,
+                });
+
+                if (error) throw error;
+
+                console.log("Logged in:", data.user);
                 window.location.href = 'app.html';
 
             } catch (error) {
                 console.error("Login Error:", error);
-                let message = "Invalid email or password.";
-                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-                    message = "Invalid credentials.";
-                } else if (error.code === 'auth/too-many-requests') {
-                    message = "Too many failed attempts. Try again later.";
-                }
-
-                errorMsg.innerText = message;
+                errorMsg.innerText = error.message;
                 errorMsg.style.display = 'block';
                 btn.innerText = "Login";
                 btn.disabled = false;

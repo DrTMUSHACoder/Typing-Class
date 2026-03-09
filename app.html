@@ -11,8 +11,51 @@
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=8">
-    <!-- Auth Check -->
-    <!-- Auth Check handled in script.js -->
+    <!-- Chart.js for Progress Graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .view-toggle-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .view-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
+            padding: 5px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .view-btn.active {
+            background: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+        }
+
+        #progress-view {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            gap: 20px;
+            padding: 10px;
+        }
+
+        .chart-container {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            flex-grow: 1;
+            min-height: 300px;
+        }
+    </style>
 </head>
 
 <body>
@@ -128,119 +171,136 @@
             </div>
         </header>
 
+        <div class="view-toggle-container">
+            <button id="show-typing" class="view-btn active">Typing Practice</button>
+            <button id="show-progress" class="view-btn">My Progress Graph</button>
+        </div>
+
         <div class="glass-panel">
-            <div class="stats-bar">
-                <div class="stat-item">
-                    <span class="label">Time</span>
-                    <span class="value" id="timer">60s</span>
-                </div>
-                <div class="stat-item">
-                    <span class="label">WPM</span>
-                    <span class="value" id="wpm">0</span>
-                </div>
-                <div class="stat-item">
-                    <span class="label">Accuracy</span>
-                    <span class="value" id="accuracy">100%</span>
+            <!-- Progress View -->
+            <div id="progress-view">
+                <h2 style="text-align: center; color: var(--accent-color); margin-bottom: 10px;">WPM Progress Over Time
+                </h2>
+                <div class="chart-container">
+                    <canvas id="wpmChart"></canvas>
                 </div>
             </div>
 
-            <div class="typing-area">
-                <div id="instruction-text" class="instruction-text">
-                    Select a lesson from above to begin.
-                </div>
-                <div id="quote-display" class="quote-display">
-                    <!-- Text will appear here -->
-                </div>
-                <input type="text" id="quote-input" class="quote-input" autocomplete="off" disabled>
-            </div>
-            <br>
-            <!-- Double Pane Visuals: Keyboard & Hands -->
-            <div class="visuals-container">
-
-                <!-- 1. Virtual Keyboard -->
-                <div class="keyboard-wrapper">
-                    <div class="keyboard-container">
-                        <div class="keyboard-row">
-                            <div class="key pinky" data-key="q">Q</div>
-                            <div class="key ring" data-key="w">W</div>
-                            <div class="key middle" data-key="e">E</div>
-                            <div class="key index" data-key="r">R</div>
-                            <div class="key index" data-key="t">T</div>
-                            <div class="key index" data-key="y">Y</div>
-                            <div class="key index" data-key="u">U</div>
-                            <div class="key middle" data-key="i">I</div>
-                            <div class="key ring" data-key="o">O</div>
-                            <div class="key pinky" data-key="p">P</div>
-                        </div>
-                        <div class="keyboard-row">
-                            <div class="key pinky" data-key="a">A</div>
-                            <div class="key ring" data-key="s">S</div>
-                            <div class="key middle" data-key="d">D</div>
-                            <div class="key index" data-key="f">F<span class="bump">_</span></div>
-                            <div class="key index" data-key="g">G</div>
-                            <div class="key index" data-key="h">H</div>
-                            <div class="key index" data-key="j">J<span class="bump">_</span></div>
-                            <div class="key middle" data-key="k">K</div>
-                            <div class="key ring" data-key="l">L</div>
-                            <div class="key pinky" data-key=";">;</div>
-                        </div>
-                        <div class="keyboard-row">
-                            <div class="key pinky" data-key="z">Z</div>
-                            <div class="key ring" data-key="x">X</div>
-                            <div class="key middle" data-key="c">C</div>
-                            <div class="key index" data-key="v">V</div>
-                            <div class="key index" data-key="b">B</div>
-                            <div class="key index" data-key="n">N</div>
-                            <div class="key index" data-key="m">M</div>
-                            <div class="key middle" data-key=",">,</div>
-                            <div class="key ring" data-key=".">.</div>
-                            <div class="key pinky" data-key="/">/</div>
-                        </div>
-                        <div class="keyboard-row">
-                            <div class="key pinky" data-key="shift">Shift</div>
-                            <div class="key thumb space-key" data-key=" ">Space</div>
-                            <div class="key pinky" data-key="shift">Shift</div>
-                        </div>
+            <!-- Typing View -->
+            <div id="typing-view">
+                <div class="stats-bar">
+                    <div class="stat-item">
+                        <span class="label">Time</span>
+                        <span class="value" id="timer">60s</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="label">WPM</span>
+                        <span class="value" id="wpm">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="label">Accuracy</span>
+                        <span class="value" id="accuracy">100%</span>
                     </div>
                 </div>
 
-                <!-- 2. Hand Guides -->
-                <div class="hands-wrapper">
-                    <div class="hands-container">
-                        <!-- Left Hand -->
-                        <div class="hand left-hand">
-                            <div class="finger pinky" id="f-l-pinky"></div> <!-- Little -->
-                            <div class="finger ring" id="f-l-ring"></div> <!-- Ring -->
-                            <div class="finger middle" id="f-l-middle"></div> <!-- Middle -->
-                            <div class="finger index" id="f-l-index"></div> <!-- Index -->
-                            <div class="finger thumb" id="f-l-thumb"></div> <!-- Thumb -->
-                            <div class="palm">L</div>
-                        </div>
+                <div class="typing-area">
+                    <div id="instruction-text" class="instruction-text">
+                        Select a lesson from above to begin.
+                    </div>
+                    <div id="quote-display" class="quote-display">
+                        <!-- Text will appear here -->
+                    </div>
+                    <input type="text" id="quote-input" class="quote-input" autocomplete="off" disabled>
+                </div>
+                <br>
+                <!-- Double Pane Visuals: Keyboard & Hands -->
+                <div class="visuals-container">
 
-                        <!-- Right Hand -->
-                        <div class="hand right-hand">
-                            <div class="finger thumb" id="f-r-thumb"></div> <!-- Thumb -->
-                            <div class="finger index" id="f-r-index"></div> <!-- Index -->
-                            <div class="finger middle" id="f-r-middle"></div> <!-- Middle -->
-                            <div class="finger ring" id="f-r-ring"></div> <!-- Ring -->
-                            <div class="finger pinky" id="f-r-pinky"></div> <!-- Little -->
-                            <div class="palm">R</div>
+                    <!-- 1. Virtual Keyboard -->
+                    <div class="keyboard-wrapper">
+                        <div class="keyboard-container">
+                            <div class="keyboard-row">
+                                <div class="key pinky" data-key="q">Q</div>
+                                <div class="key ring" data-key="w">W</div>
+                                <div class="key middle" data-key="e">E</div>
+                                <div class="key index" data-key="r">R</div>
+                                <div class="key index" data-key="t">T</div>
+                                <div class="key index" data-key="y">Y</div>
+                                <div class="key index" data-key="u">U</div>
+                                <div class="key middle" data-key="i">I</div>
+                                <div class="key ring" data-key="o">O</div>
+                                <div class="key pinky" data-key="p">P</div>
+                            </div>
+                            <div class="keyboard-row">
+                                <div class="key pinky" data-key="a">A</div>
+                                <div class="key ring" data-key="s">S</div>
+                                <div class="key middle" data-key="d">D</div>
+                                <div class="key index" data-key="f">F<span class="bump">_</span></div>
+                                <div class="key index" data-key="g">G</div>
+                                <div class="key index" data-key="h">H</div>
+                                <div class="key index" data-key="j">J<span class="bump">_</span></div>
+                                <div class="key middle" data-key="k">K</div>
+                                <div class="key ring" data-key="l">L</div>
+                                <div class="key pinky" data-key=";">;</div>
+                            </div>
+                            <div class="keyboard-row">
+                                <div class="key pinky" data-key="z">Z</div>
+                                <div class="key ring" data-key="x">X</div>
+                                <div class="key middle" data-key="c">C</div>
+                                <div class="key index" data-key="v">V</div>
+                                <div class="key index" data-key="b">B</div>
+                                <div class="key index" data-key="n">N</div>
+                                <div class="key index" data-key="m">M</div>
+                                <div class="key middle" data-key=",">,</div>
+                                <div class="key ring" data-key=".">.</div>
+                                <div class="key pinky" data-key="/">/</div>
+                            </div>
+                            <div class="keyboard-row">
+                                <div class="key pinky" data-key="shift">Shift</div>
+                                <div class="key thumb space-key" data-key=" ">Space</div>
+                                <div class="key pinky" data-key="shift">Shift</div>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- 2. Hand Guides -->
+                    <div class="hands-wrapper">
+                        <div class="hands-container">
+                            <!-- Left Hand -->
+                            <div class="hand left-hand">
+                                <div class="finger pinky" id="f-l-pinky"></div> <!-- Little -->
+                                <div class="finger ring" id="f-l-ring"></div> <!-- Ring -->
+                                <div class="finger middle" id="f-l-middle"></div> <!-- Middle -->
+                                <div class="finger index" id="f-l-index"></div> <!-- Index -->
+                                <div class="finger thumb" id="f-l-thumb"></div> <!-- Thumb -->
+                                <div class="palm">L</div>
+                            </div>
+
+                            <!-- Right Hand -->
+                            <div class="hand right-hand">
+                                <div class="finger thumb" id="f-r-thumb"></div> <!-- Thumb -->
+                                <div class="finger index" id="f-r-index"></div> <!-- Index -->
+                                <div class="finger middle" id="f-r-middle"></div> <!-- Middle -->
+                                <div class="finger ring" id="f-r-ring"></div> <!-- Ring -->
+                                <div class="finger pinky" id="f-r-pinky"></div> <!-- Little -->
+                                <div class="palm">R</div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
 
-            </div>
+                <div class="controls">
+                    <button id="start-btn" class="btn primary-btn" style="display:none;">Start Lesson</button>
+                    <button id="restart-btn" class="btn secondary-btn" style="display: none;">Restart</button>
+                </div>
 
-            <div class="controls">
-                <button id="start-btn" class="btn primary-btn" style="display:none;">Start Lesson</button>
-                <button id="restart-btn" class="btn secondary-btn" style="display: none;">Restart</button>
-            </div>
-
-            <div id="error-report" class="error-report hidden">
-                <h3>Lesson Complete!</h3>
-                <p>Most Frequent Misses:</p>
-                <div id="error-list"></div>
-            </div>
+                <div id="error-report" class="error-report hidden">
+                    <h3>Lesson Complete!</h3>
+                    <p>Most Frequent Misses:</p>
+                    <div id="error-list"></div>
+                </div>
+            </div> <!-- End typing-view -->
         </div>
 
         <footer>
