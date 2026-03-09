@@ -543,9 +543,9 @@ function renderReportInModal() {
 
     if (reportData.length === 0) {
         if (showFullHistory) {
-            alert("No practice records found.");
+            alert("No practice records found yet. Complete a lesson to see your stats here!");
         } else {
-            alert("No records found for today (6 AM - 6 AM). Switch to 'All-Time' to see past work.");
+            // Auto-switch to all-time if today is empty
             showFullHistory = true;
             renderReportInModal();
         }
